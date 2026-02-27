@@ -8,4 +8,5 @@ build/
 .env
 *.db
 .eggs/
+web/
 .DS_Store
