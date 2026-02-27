@@ -1,0 +1,499 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Dog Poop Tracker — Server Health Monitoring for the Civilized</title>
+<meta name="description" content="A CLI tool for monitoring your HTTP endpoints. Every service is a dog. Every health check is a poop. Solid is good. Liquid is bad.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --bg:#07070b;--bg2:#0d0d14;--surface:rgba(255,255,255,0.03);
+  --border:rgba(255,255,255,0.06);--border-hover:rgba(255,255,255,0.12);
+  --purple:#8b5cf6;--purple-dim:rgba(139,92,246,0.15);
+  --cyan:#06b6d4;--cyan-dim:rgba(6,182,212,0.15);
+  --teal:#14b8a6;--green:#22c55e;--red:#ef4444;--yellow:#eab308;--orange:#f97316;
+  --text:#f0f0f5;--text2:#9ca3af;--text3:#6b7280;
+  --font:'Inter',system-ui,sans-serif;--mono:'JetBrains Mono',monospace;
+}
+html{scroll-behavior:smooth}
+body{background:var(--bg);color:var(--text);font-family:var(--font);line-height:1.6;overflow-x:hidden}
+a{color:var(--purple);text-decoration:none;transition:color .2s}
+a:hover{color:var(--cyan)}
+::selection{background:var(--purple);color:#fff}
+
+/* ── Animated orbs ── */
+.orbs{position:fixed;inset:0;z-index:0;pointer-events:none;overflow:hidden}
+.orb{position:absolute;border-radius:50%;filter:blur(120px);opacity:.12}
+.orb-1{width:600px;height:600px;background:radial-gradient(circle,var(--purple),transparent 70%);top:-200px;left:-100px;animation:drift1 28s ease-in-out infinite}
+.orb-2{width:500px;height:500px;background:radial-gradient(circle,var(--cyan),transparent 70%);bottom:-150px;right:-100px;animation:drift2 32s ease-in-out infinite}
+.orb-3{width:400px;height:400px;background:radial-gradient(circle,var(--teal),transparent 70%);top:45%;left:55%;animation:drift3 22s ease-in-out infinite}
+@keyframes drift1{0%,100%{transform:translate(0,0) scale(1)}33%{transform:translate(120px,100px) scale(1.1)}66%{transform:translate(40px,180px) scale(.95)}}
+@keyframes drift2{0%,100%{transform:translate(0,0) scale(1)}33%{transform:translate(-90px,-70px) scale(1.08)}66%{transform:translate(-140px,-110px) scale(1.12)}}
+@keyframes drift3{0%,100%{transform:translate(-50%,-50%) scale(1)}50%{transform:translate(-30%,-60%) scale(1.15)}}
+
+/* ── Nav ── */
+nav{position:fixed;top:40px;left:0;right:0;z-index:100;padding:1rem 2rem;transition:background .3s,backdrop-filter .3s;display:flex;align-items:center;justify-content:space-between}
+nav.scrolled{background:rgba(7,7,11,0.8);backdrop-filter:blur(20px);border-bottom:1px solid var(--border)}
+nav .logo{font-weight:700;font-size:.95rem;color:var(--text);letter-spacing:-.01em}
+nav .logo span{color:var(--purple)}
+nav ul{list-style:none;display:flex;gap:2rem}
+nav ul a{color:var(--text3);font-size:.85rem;font-weight:500;transition:color .2s}
+nav ul a:hover{color:var(--text)}
+@media(max-width:768px){nav ul{display:none}}
+
+/* ── Sections ── */
+section{position:relative;z-index:1;max-width:1100px;margin:0 auto;padding:6rem 2rem}
+.section-label{text-transform:uppercase;font-size:.75rem;font-weight:600;letter-spacing:.1em;color:var(--purple);margin-bottom:.75rem}
+.section-title{font-size:2.2rem;font-weight:700;line-height:1.2;margin-bottom:1rem}
+.section-sub{color:var(--text2);font-size:1.05rem;max-width:600px;margin-bottom:3rem}
+
+/* ── Hero ── */
+.hero{text-align:center;padding-top:12rem;padding-bottom:6rem}
+.hero pre{font-family:var(--mono);font-size:clamp(.35rem,.9vw,.75rem);line-height:1.2;margin-bottom:2rem;
+  background:linear-gradient(180deg,var(--purple),var(--cyan));-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;
+  display:inline-block;white-space:pre}
+.hero h2{font-size:1.6rem;font-weight:600;margin-bottom:.5rem}
+.hero p{color:var(--text2);font-size:1.1rem;margin-bottom:2.5rem;font-style:italic}
+.hero-buttons{display:flex;gap:1rem;justify-content:center;margin-top:2rem;flex-wrap:wrap}
+.btn{display:inline-flex;align-items:center;gap:.5rem;padding:.75rem 1.8rem;border-radius:10px;font-weight:600;font-size:.9rem;transition:all .25s}
+.btn-primary{background:linear-gradient(135deg,var(--purple),#6d28d9);color:#fff;box-shadow:0 0 25px var(--purple-dim)}
+.btn-primary:hover{transform:translateY(-2px);box-shadow:0 0 40px rgba(139,92,246,.3);color:#fff}
+.btn-ghost{border:1px solid var(--border);color:var(--text2);background:var(--surface)}
+.btn-ghost:hover{border-color:var(--border-hover);color:var(--text);background:rgba(255,255,255,0.05)}
+
+/* ── Terminal mockup ── */
+.terminal{background:#111118;border:1px solid var(--border);border-radius:12px;overflow:hidden;font-family:var(--mono);font-size:.82rem;line-height:1.6;text-align:left;max-width:700px;margin:0 auto}
+.terminal-bar{display:flex;align-items:center;gap:6px;padding:12px 16px;background:rgba(255,255,255,0.02);border-bottom:1px solid var(--border)}
+.terminal-dot{width:10px;height:10px;border-radius:50%}
+.terminal-dot.r{background:#ff5f57}.terminal-dot.y{background:#febc2e}.terminal-dot.g{background:#28c840}
+.terminal-bar span{margin-left:auto;font-size:.7rem;color:var(--text3)}
+.terminal-body{padding:1rem 1.2rem;color:#c9d1d9;overflow-x:auto}
+.terminal-body .prompt{color:var(--green)}
+.terminal-body .cmd{color:#fff;font-weight:500}
+.terminal-body .dim{color:#555}
+.terminal-body .purple{color:var(--purple)}
+.terminal-body .cyan{color:var(--cyan)}
+.terminal-body .green{color:var(--green)}
+.terminal-body .red{color:var(--red)}
+.terminal-body .yellow{color:var(--yellow)}
+.terminal-body .orange{color:var(--orange)}
+.terminal-body .white{color:#fff}
+.hero .terminal{margin-top:2.5rem}
+.terminal-footer{display:flex;justify-content:flex-end;padding:6px 12px;border-top:1px solid var(--border);background:rgba(255,255,255,0.01)}
+.copy-btn{background:rgba(255,255,255,0.06);border:1px solid var(--border);color:var(--text3);padding:4px 10px;border-radius:6px;font-size:.7rem;cursor:pointer;font-family:var(--font);transition:all .2s}
+.copy-btn:hover{background:rgba(255,255,255,0.1);color:var(--text)}
+.copy-btn.copied{color:var(--green);border-color:rgba(34,197,94,0.3)}
+
+/* ── CA box ── */
+.ca-banner{position:fixed;top:0;left:0;right:0;z-index:99;display:flex;justify-content:center;padding:10px 1rem;background:rgba(139,92,246,0.06);border-bottom:1px solid rgba(139,92,246,0.12);backdrop-filter:blur(16px)}
+.ca-box{display:inline-flex;align-items:center;gap:.75rem;padding:.35rem .8rem .35rem 1rem;border-radius:8px;background:transparent;border:none;transition:all .3s;cursor:pointer}
+.ca-box:hover .ca-addr{color:var(--text)}
+.ca-label{font-size:.65rem;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--purple);background:var(--purple-dim);padding:3px 8px;border-radius:5px}
+.ca-addr{font-family:var(--mono);font-size:.78rem;color:var(--text2);letter-spacing:.02em;user-select:all}
+.ca-copy{background:none;border:none;color:var(--text3);cursor:pointer;padding:4px;border-radius:4px;transition:all .2s;display:flex;align-items:center}
+.ca-copy:hover{color:var(--text);background:rgba(255,255,255,0.06)}
+.ca-copy.copied{color:var(--green)}
+
+/* ── Features grid ── */
+.features-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:1.5rem}
+.feature-card{background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:2rem;transition:all .3s;backdrop-filter:blur(10px)}
+.feature-card:hover{border-color:var(--border-hover);background:rgba(255,255,255,0.05);transform:translateY(-3px);box-shadow:0 12px 40px rgba(0,0,0,.3)}
+.feature-card .icon{width:44px;height:44px;border-radius:12px;display:flex;align-items:center;justify-content:center;font-size:1.3rem;margin-bottom:1.2rem}
+.feature-card:nth-child(odd) .icon{background:var(--purple-dim);color:var(--purple)}
+.feature-card:nth-child(even) .icon{background:var(--cyan-dim);color:var(--cyan)}
+.feature-card h3{font-size:1.05rem;font-weight:600;margin-bottom:.5rem}
+.feature-card p{color:var(--text2);font-size:.88rem;line-height:1.6}
+@media(max-width:900px){.features-grid{grid-template-columns:repeat(2,1fr)}}
+@media(max-width:600px){.features-grid{grid-template-columns:1fr}}
+
+/* ── Steps ── */
+.steps{display:flex;flex-direction:column;gap:4rem}
+.step{display:flex;gap:3rem;align-items:flex-start}
+.step:nth-child(even){flex-direction:row-reverse}
+.step-info{flex:1;padding-top:1rem}
+.step-num{font-size:3.5rem;font-weight:800;background:linear-gradient(135deg,var(--purple),var(--cyan));-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;line-height:1;margin-bottom:.5rem}
+.step-info h3{font-size:1.3rem;font-weight:600;margin-bottom:.5rem}
+.step-info p{color:var(--text2);font-size:.95rem}
+.step .terminal{flex:1.3;min-width:0}
+@media(max-width:768px){.step,.step:nth-child(even){flex-direction:column}.step .terminal{width:100%}}
+
+/* ── Mapping table ── */
+.mapping-table{width:100%;border-collapse:separate;border-spacing:0;overflow:hidden;border-radius:12px;border:1px solid var(--border);font-size:.9rem}
+.mapping-table th{background:rgba(139,92,246,0.08);text-align:left;padding:.8rem 1.2rem;font-weight:600;color:var(--purple);border-bottom:1px solid var(--border)}
+.mapping-table td{padding:.7rem 1.2rem;border-bottom:1px solid var(--border)}
+.mapping-table tr:last-child td{border-bottom:none}
+.mapping-table tr:hover td{background:rgba(255,255,255,0.02)}
+.mapping-table td:first-child{color:var(--cyan);font-weight:500;font-family:var(--mono);font-size:.85rem;white-space:nowrap}
+
+/* ── Commands ref ── */
+.cmd-grid{display:flex;flex-direction:column;gap:.5rem}
+.cmd-row{display:flex;gap:1rem;padding:.8rem 1.2rem;border-radius:10px;background:var(--surface);border:1px solid var(--border);transition:all .2s;align-items:baseline}
+.cmd-row:hover{border-color:var(--border-hover);background:rgba(255,255,255,0.04)}
+.cmd-row code{font-family:var(--mono);font-size:.82rem;color:var(--cyan);white-space:nowrap;min-width:260px}
+.cmd-row span{color:var(--text2);font-size:.85rem}
+@media(max-width:600px){.cmd-row{flex-direction:column;gap:.25rem}.cmd-row code{min-width:auto}}
+
+/* ── Install section ── */
+.install-methods{display:grid;grid-template-columns:repeat(2,1fr);gap:1.5rem}
+.install-card{background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:1.8rem;transition:all .3s}
+.install-card:hover{border-color:var(--border-hover)}
+.install-card h3{font-size:1rem;font-weight:600;margin-bottom:.4rem;display:flex;align-items:center;gap:.5rem}
+.install-card h3 .badge{font-size:.65rem;background:var(--purple-dim);color:var(--purple);padding:2px 8px;border-radius:20px;font-weight:600}
+.install-card p{color:var(--text3);font-size:.82rem;margin-bottom:1rem}
+.install-card pre{background:#111118;border-radius:8px;padding:.8rem 1rem;font-family:var(--mono);font-size:.8rem;color:#c9d1d9;overflow-x:auto;border:1px solid var(--border)}
+.install-card pre .prompt{color:var(--green)}
+@media(max-width:768px){.install-methods{grid-template-columns:1fr}}
+
+/* ── Footer ── */
+footer{position:relative;z-index:1;border-top:1px solid var(--border);padding:3rem 2rem;text-align:center}
+footer .footer-inner{max-width:1100px;margin:0 auto}
+footer h4{font-size:1rem;font-weight:600;margin-bottom:.3rem}
+footer p{color:var(--text3);font-size:.82rem}
+footer .footer-links{display:flex;justify-content:center;gap:2rem;margin-top:1.5rem}
+footer .footer-links a{color:var(--text3);font-size:.82rem}
+footer .footer-links a:hover{color:var(--text)}
+footer .made-with{margin-top:1.5rem;color:var(--text3);font-size:.75rem;font-style:italic}
+
+/* ── Divider ── */
+.divider{height:1px;background:linear-gradient(90deg,transparent,var(--border),transparent);margin:0 auto;max-width:600px}
+
+/* ── Fade in animation ── */
+.fade-in{opacity:0;transform:translateY(20px);transition:opacity .6s ease,transform .6s ease}
+.fade-in.visible{opacity:1;transform:translateY(0)}
+
+/* ── Scrollbar ── */
+::-webkit-scrollbar{width:6px}::-webkit-scrollbar-track{background:transparent}::-webkit-scrollbar-thumb{background:rgba(255,255,255,0.1);border-radius:3px}
+</style>
+</head>
+<body>
+
+<!-- Orbs -->
+<div class="orbs"><div class="orb orb-1"></div><div class="orb orb-2"></div><div class="orb orb-3"></div></div>
+
+<!-- Nav -->
+<nav id="nav">
+  <div class="logo">dog<span>poop</span>tracker</div>
+  <ul>
+    <li><a href="#features">Features</a></li>
+    <li><a href="#how-it-works">How It Works</a></li>
+    <li><a href="#installation">Installation</a></li>
+    <li><a href="#commands">Commands</a></li>
+    <li><a href="https://github.com" target="_blank">GitHub</a></li>
+  </ul>
+</nav>
+
+<!-- CA Banner -->
+<div class="ca-banner">
+  <div class="ca-box" id="ca-box">
+    <span class="ca-label">CA</span>
+    <code class="ca-addr" id="ca-addr">XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX</code>
+    <button class="ca-copy" onclick="copyCA(this)">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+    </button>
+  </div>
+</div>
+
+<!-- Hero -->
+<section class="hero">
+<pre>
+██████╗  ██████╗  ██████╗     ██████╗  ██████╗  ██████╗ ██████╗ 
+██╔══██╗██╔═══██╗██╔════╝     ██╔══██╗██╔═══██╗██╔═══██╗██╔══██╗
+██║  ██║██║   ██║██║  ███╗    ██████╔╝██║   ██║██║   ██║██████╔╝
+██║  ██║██║   ██║██║   ██║    ██╔═══╝ ██║   ██║██║   ██║██╔═══╝ 
+██████╔╝╚██████╔╝╚██████╔╝    ██║     ╚██████╔╝╚██████╔╝██║     
+╚═════╝  ╚═════╝  ╚═════╝     ╚═╝      ╚═════╝  ╚═════╝ ╚═╝     
+████████╗██████╗  █████╗  ██████╗██╗  ██╗███████╗██████╗ 
+╚══██╔══╝██╔══██╗██╔══██╗██╔════╝██║ ██╔╝██╔════╝██╔══██╗
+   ██║   ██████╔╝███████║██║     █████╔╝ █████╗  ██████╔╝
+   ██║   ██╔══██╗██╔══██║██║     ██╔═██╗ ██╔══╝  ██╔══██╗
+   ██║   ██║  ██║██║  ██║╚██████╗██║  ██╗███████╗██║  ██║
+   ╚═╝   ╚═╝  ╚═╝╚═╝  ╚═╝ ╚═════╝╚═╝  ╚═╝╚══════╝╚═╝  ╚═╝
+</pre>
+<h2>Server health monitoring for the civilized.</h2>
+<p>Because every service drops a deuce eventually.</p>
+
+<div class="terminal" style="max-width:480px">
+  <div class="terminal-bar"><div class="terminal-dot r"></div><div class="terminal-dot y"></div><div class="terminal-dot g"></div><span>terminal</span></div>
+  <div class="terminal-body">
+<span class="prompt">$</span> <span class="cmd">pip install dog-poop-tracker</span>
+<span class="prompt">$</span> <span class="cmd">poop</span>
+  </div>
+  <div class="terminal-footer"><button class="copy-btn" onclick="copyCmd(this,'pip install dog-poop-tracker')">Copy</button></div>
+</div>
+
+<div class="hero-buttons">
+  <a href="#installation" class="btn btn-primary">Get Started</a>
+  <a href="https://github.com" target="_blank" class="btn btn-ghost">
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0024 12c0-6.63-5.37-12-12-12z"/></svg>
+    GitHub
+  </a>
+</div>
+</section>
+
+<div class="divider"></div>
+
+<!-- Features -->
+<section id="features">
+<div class="fade-in" style="text-align:center;margin-bottom:3rem">
+  <div class="section-label">Features</div>
+  <div class="section-title">Everything you need to monitor your endpoints.</div>
+  <div class="section-sub" style="margin:0 auto">With the dumbest name possible.</div>
+</div>
+<div class="features-grid">
+  <div class="feature-card fade-in">
+    <div class="icon"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg></div>
+    <h3>Health Checks</h3>
+    <p>Monitor HTTP endpoints with configurable intervals, methods, headers, and expected status codes. GET, POST, whatever your dog needs.</p>
+  </div>
+  <div class="feature-card fade-in">
+    <div class="icon"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg></div>
+    <h3>The Poop Scale</h3>
+    <p>Results mapped to a brilliant consistency scale. Solid (healthy), Normal (ok), Soft (degraded), Liquid (down). You'll never unsee it.</p>
+  </div>
+  <div class="feature-card fade-in">
+    <div class="icon"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z"/><circle cx="12" cy="12" r="3"/></svg></div>
+    <h3>Live Watch Mode</h3>
+    <p>Real-time monitoring dashboard in your terminal. Auto-refreshes at each dog's interval. Alerts when services go down or recover.</p>
+  </div>
+  <div class="feature-card fade-in">
+    <div class="icon"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg></div>
+    <h3>Statistics &amp; History</h3>
+    <p>Track uptime percentages, latency trends, consistency breakdowns. Full check history with filtering by service and time window.</p>
+  </div>
+  <div class="feature-card fade-in">
+    <div class="icon"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg></div>
+    <h3>Zero Dependencies*</h3>
+    <p>Pure Python. SQLite for storage. No cloud, no accounts, no BS. Your data stays local in ~/.dpt/poop.db. <em>*well, a few pip packages</em></p>
+  </div>
+  <div class="feature-card fade-in">
+    <div class="icon"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="4 17 10 11 4 5"/><line x1="12" y1="19" x2="20" y2="19"/></svg></div>
+    <h3>Beautiful CLI</h3>
+    <p>Rich terminal UI with colored tables, gradient ASCII art, and status indicators. Looks as good as it is functional.</p>
+  </div>
+</div>
+</section>
+
+<div class="divider"></div>
+
+<!-- How it works -->
+<section id="how-it-works">
+<div class="fade-in" style="text-align:center;margin-bottom:4rem">
+  <div class="section-label">How It Works</div>
+  <div class="section-title">Three steps to digestive enlightenment.</div>
+</div>
+<div class="steps">
+
+  <div class="step fade-in">
+    <div class="step-info">
+      <div class="step-num">01</div>
+      <h3>Add your dogs</h3>
+      <p>Register endpoints to monitor. Set the URL, expected status, timeout, and check interval. Each service is a "dog" in your pack.</p>
+    </div>
+    <div class="terminal">
+      <div class="terminal-bar"><div class="terminal-dot r"></div><div class="terminal-dot y"></div><div class="terminal-dot g"></div><span>terminal</span></div>
+      <div class="terminal-body">
+<span class="prompt">$</span> <span class="cmd">poop add prod-api https://api.example.com --interval 30</span>
+
+<span class="dim">╭──────────────────── ✔ New Dog Added ─────────────────────╮</span>
+<span class="dim">│</span>  <span class="white">Name:</span>      <span class="cyan">prod-api</span>                                    <span class="dim">│</span>
+<span class="dim">│</span>  <span class="white">URL:</span>       <span class="dim">https://api.example.com</span>                     <span class="dim">│</span>
+<span class="dim">│</span>  <span class="white">Method:</span>    GET                                          <span class="dim">│</span>
+<span class="dim">│</span>  <span class="white">Interval:</span>  30s                                          <span class="dim">│</span>
+<span class="dim">╰──────────────────────────────────────────────────────────╯</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="step fade-in">
+    <div class="step-info">
+      <div class="step-num">02</div>
+      <h3>Walk the dogs</h3>
+      <p>Run health checks on all your services at once. Each check is classified into the poop consistency scale with color-coded results.</p>
+    </div>
+    <div class="terminal">
+      <div class="terminal-bar"><div class="terminal-dot r"></div><div class="terminal-dot y"></div><div class="terminal-dot g"></div><span>terminal</span></div>
+      <div class="terminal-body">
+<span class="prompt">$</span> <span class="cmd">poop check</span>
+
+<span class="dim">╭────────────┬────────┬─────────┬─────────────┬───────────╮</span>
+<span class="dim">│</span> <span class="white">Dog</span>        <span class="dim">│</span> <span class="white">Status</span> <span class="dim">│</span> <span class="white">Latency</span> <span class="dim">│</span> <span class="white">Consistency</span> <span class="dim">│</span> <span class="white">Healthy</span>   <span class="dim">│</span>
+<span class="dim">├────────────┼────────┼─────────┼─────────────┼───────────┤</span>
+<span class="dim">│</span> <span class="cyan">prod-api</span>   <span class="dim">│</span>  <span class="green">200</span>   <span class="dim">│</span>   <span class="green">45ms</span>  <span class="dim">│</span> <span class="green">● solid</span>    <span class="dim">│</span> <span class="green">✔ HEALTHY</span> <span class="dim">│</span>
+<span class="dim">│</span> <span class="cyan">auth</span>       <span class="dim">│</span>  <span class="yellow">200</span>   <span class="dim">│</span>  <span class="yellow">890ms</span>  <span class="dim">│</span> <span class="orange">◐ soft</span>    <span class="dim">│</span> <span class="red">✘ SICK</span>    <span class="dim">│</span>
+<span class="dim">│</span> <span class="cyan">payments</span>   <span class="dim">│</span>  <span class="red">ERR</span>   <span class="dim">│</span> <span class="red">timeout</span> <span class="dim">│</span> <span class="red">○ liquid</span>   <span class="dim">│</span> <span class="red">✘ SICK</span>    <span class="dim">│</span>
+<span class="dim">╰────────────┴────────┴─────────┴─────────────┴───────────╯</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="step fade-in">
+    <div class="step-info">
+      <div class="step-num">03</div>
+      <h3>Watch them play</h3>
+      <p>Start the live monitoring daemon. It continuously checks all services at their configured intervals and alerts you when something changes.</p>
+    </div>
+    <div class="terminal">
+      <div class="terminal-bar"><div class="terminal-dot r"></div><div class="terminal-dot y"></div><div class="terminal-dot g"></div><span>terminal — poop watch</span></div>
+      <div class="terminal-body">
+<span class="purple">◆ Live Monitoring</span>  <span class="dim">│</span>  <span class="dim">Ctrl+C to stop</span>
+
+<span class="dim">╭────────────┬────────┬─────────┬─────────────┬───────────╮</span>
+<span class="dim">│</span> <span class="white">Dog</span>        <span class="dim">│</span> <span class="white">Status</span> <span class="dim">│</span> <span class="white">Latency</span> <span class="dim">│</span> <span class="white">Consistency</span> <span class="dim">│</span> <span class="white">Next</span>      <span class="dim">│</span>
+<span class="dim">├────────────┼────────┼─────────┼─────────────┼───────────┤</span>
+<span class="dim">│</span> <span class="cyan">prod-api</span>   <span class="dim">│</span>  <span class="green">200</span>   <span class="dim">│</span>   <span class="green">42ms</span>  <span class="dim">│</span> <span class="green">● solid</span>    <span class="dim">│</span> <span class="dim">28s</span>       <span class="dim">│</span>
+<span class="dim">│</span> <span class="cyan">auth</span>       <span class="dim">│</span>  <span class="green">200</span>   <span class="dim">│</span>  <span class="green">120ms</span>  <span class="dim">│</span> <span class="green">● solid</span>    <span class="dim">│</span> <span class="dim">55s</span>       <span class="dim">│</span>
+<span class="dim">│</span> <span class="cyan">payments</span>   <span class="dim">│</span>  <span class="green">200</span>   <span class="dim">│</span>  <span class="green">230ms</span>  <span class="dim">│</span> <span class="green">● normal</span>   <span class="dim">│</span> <span class="dim">48s</span>       <span class="dim">│</span>
+<span class="dim">╰────────────┴────────┴─────────┴─────────────┴───────────╯</span>
+
+<span class="dim">  [17:21:28]</span> <span class="green">▲ payments recovered</span>  <span class="dim">solid 230ms</span>
+      </div>
+    </div>
+  </div>
+
+</div>
+</section>
+
+<div class="divider"></div>
+
+<!-- The Mapping -->
+<section id="mapping">
+<div class="fade-in" style="text-align:center;margin-bottom:3rem">
+  <div class="section-label">The Mapping</div>
+  <div class="section-title">A glossary for the uninitiated.</div>
+</div>
+<div class="fade-in" style="max-width:700px;margin:0 auto">
+<table class="mapping-table">
+  <thead><tr><th>Poop Term</th><th>What It Actually Means</th></tr></thead>
+  <tbody>
+    <tr><td>Dog</td><td>A service or endpoint you're monitoring</td></tr>
+    <tr><td>Poop</td><td>A health check result</td></tr>
+    <tr><td>Solid</td><td>Fast response, correct status code — all good</td></tr>
+    <tr><td>Normal</td><td>Correct but slower than ideal</td></tr>
+    <tr><td>Soft</td><td>Wrong status code, high latency, 4xx errors</td></tr>
+    <tr><td>Liquid</td><td>Down. 5xx, timeout, connection refused</td></tr>
+    <tr><td>Walk the dog</td><td>Run a health check</td></tr>
+    <tr><td>Blood</td><td>Server errors (5xx) or connection refused</td></tr>
+    <tr><td>Mucus</td><td>Warnings — slow but working, redirects</td></tr>
+  </tbody>
+</table>
+</div>
+</section>
+
+<div class="divider"></div>
+
+<!-- Installation -->
+<section id="installation">
+<div class="fade-in" style="text-align:center;margin-bottom:3rem">
+  <div class="section-label">Installation</div>
+  <div class="section-title">Get up and running in 30 seconds.</div>
+  <div class="section-sub" style="margin:0 auto">Requires Python 3.10+. That's it.</div>
+</div>
+<div class="install-methods fade-in">
+  <div class="install-card">
+    <h3>pip install <span class="badge">Recommended</span></h3>
+    <p>Install globally from PyPI.</p>
+    <pre><span class="prompt">$</span> pip install dog-poop-tracker
+<span class="prompt">$</span> poop</pre>
+  </div>
+  <div class="install-card">
+    <h3>From source</h3>
+    <p>Clone and install in development mode.</p>
+    <pre><span class="prompt">$</span> git clone https://github.com/user/dog-poop-tracker
+<span class="prompt">$</span> cd dog-poop-tracker
+<span class="prompt">$</span> pip install -e .</pre>
+  </div>
+</div>
+<div class="fade-in" style="margin-top:2.5rem">
+  <div class="terminal" style="max-width:600px">
+    <div class="terminal-bar"><div class="terminal-dot r"></div><div class="terminal-dot y"></div><div class="terminal-dot g"></div><span>quick start</span></div>
+    <div class="terminal-body">
+<span class="dim"># Add some services</span>
+<span class="prompt">$</span> <span class="cmd">poop add prod-api https://api.example.com</span>
+<span class="prompt">$</span> <span class="cmd">poop add auth https://auth.example.com --timeout 5</span>
+
+<span class="dim"># Run a health check</span>
+<span class="prompt">$</span> <span class="cmd">poop check</span>
+
+<span class="dim"># Start live monitoring</span>
+<span class="prompt">$</span> <span class="cmd">poop watch</span>
+    </div>
+  </div>
+</div>
+</section>
+
+<div class="divider"></div>
+
+<!-- Commands -->
+<section id="commands">
+<div class="fade-in" style="text-align:center;margin-bottom:3rem">
+  <div class="section-label">Commands</div>
+  <div class="section-title">Full command reference.</div>
+</div>
+<div class="cmd-grid fade-in">
+  <div class="cmd-row"><code>poop</code><span>Show the splash screen with stats overview</span></div>
+  <div class="cmd-row"><code>poop add &lt;name&gt; &lt;url&gt;</code><span>Add a service to monitor. Options: --method, --expected-status, --timeout, --interval, --header</span></div>
+  <div class="cmd-row"><code>poop remove &lt;name&gt;</code><span>Remove a service and all its check history</span></div>
+  <div class="cmd-row"><code>poop list</code><span>List all registered services with their config</span></div>
+  <div class="cmd-row"><code>poop check [name]</code><span>Run health checks. Specify a name or check all enabled services</span></div>
+  <div class="cmd-row"><code>poop status</code><span>Quick overview table of all services and their last check</span></div>
+  <div class="cmd-row"><code>poop history [name]</code><span>Show recent check history. Options: --limit, --hours</span></div>
+  <div class="cmd-row"><code>poop watch</code><span>Start live monitoring mode. Auto-checks at each service's interval. Ctrl+C to stop</span></div>
+  <div class="cmd-row"><code>poop stats [name]</code><span>Show uptime %, latency stats, and consistency breakdown. Options: --hours</span></div>
+  <div class="cmd-row"><code>poop toggle &lt;name&gt;</code><span>Enable or disable a service. Disabled services are skipped during checks</span></div>
+</div>
+</section>
+
+<div class="divider"></div>
+
+<!-- Footer -->
+<footer>
+<div class="footer-inner">
+  <h4>Dog Poop Tracker <span style="color:var(--text3);font-weight:400">v1.0.0</span></h4>
+  <p>Server health monitoring for the civilized.</p>
+  <div class="footer-links">
+    <a href="https://github.com" target="_blank">GitHub</a>
+    <a href="#features">Features</a>
+    <a href="#installation">Installation</a>
+    <a href="#commands">Commands</a>
+  </div>
+  <div class="made-with">Made with questionable naming choices. MIT License.</div>
+</div>
+</footer>
+
+<script>
+// Nav scroll effect
+const nav=document.getElementById('nav');
+window.addEventListener('scroll',()=>{nav.classList.toggle('scrolled',window.scrollY>50)});
+
+// Fade-in on scroll
+const observer=new IntersectionObserver((entries)=>{
+  entries.forEach(e=>{if(e.isIntersecting){e.target.classList.add('visible');observer.unobserve(e.target)}})
+},{threshold:0.1,rootMargin:'0px 0px -40px 0px'});
+document.querySelectorAll('.fade-in').forEach(el=>observer.observe(el));
+
+// Copy button
+function copyCmd(btn,text){
+  navigator.clipboard.writeText(text).then(()=>{
+    btn.textContent='Copied!';btn.classList.add('copied');
+    setTimeout(()=>{btn.textContent='Copy';btn.classList.remove('copied')},2000);
+  });
+}
+
+// Copy CA
+function copyCA(btn){
+  const addr=document.getElementById('ca-addr').textContent;
+  navigator.clipboard.writeText(addr).then(()=>{
+    btn.classList.add('copied');
+    btn.innerHTML='<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>';
+    setTimeout(()=>{
+      btn.classList.remove('copied');
+      btn.innerHTML='<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>';
+    },2000);
+  });
+}
+</script>
+</body>
+</html>
