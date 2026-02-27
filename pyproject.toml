@@ -34,8 +34,8 @@ dependencies = [
 ]
 
 [project.urls]
-Homepage = "https://github.com/dog-poop-tracker/dog-poop-tracker"
-Repository = "https://github.com/dog-poop-tracker/dog-poop-tracker"
+Homepage = "https://github.com/dogpooptracker/dogpooptracker"
+Repository = "https://github.com/dogpooptracker/dogpooptracker"
 
 [project.scripts]
 poop = "dpt.cli:cli"
